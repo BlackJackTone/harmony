@@ -159,6 +159,12 @@ def handle_hvm(ns, output_files, parse_code_only, code, scope):
     else:
         # print("* Phase 2: run the model checker", flush=True)
         if "hfa" in output_files and output_files["hfa"] != None:
+            
+            print(*charm_options,
+                "-o" + output_files["hco"],
+                "-o" + output_files["hfa"],
+                output_files["hvm"])
+            
             r = charm.run_model_checker(
                 *charm_options,
                 "-o" + output_files["hco"],
@@ -166,6 +172,10 @@ def handle_hvm(ns, output_files, parse_code_only, code, scope):
                 output_files["hvm"]
             )
         else:
+            print(*charm_options,
+                "-o" + output_files["hco"],
+                output_files["hvm"])
+            
             r = charm.run_model_checker(
                 *charm_options,
                 "-o" + output_files["hco"],

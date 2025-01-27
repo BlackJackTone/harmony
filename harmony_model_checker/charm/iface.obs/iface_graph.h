@@ -33,8 +33,8 @@ struct iface_edge_t {
     struct iface_edge_t *next;
 
     /**
-     * is_fwd iff this edge \in src.fwd
-     * !is_fwd iff this edge \in dst.bwd
+     * is_fwd iff this edge in src.fwd
+     * !is_fwd iff this edge in dst.bwd
      */
     bool is_fwd;
     struct iface_node_t *src;

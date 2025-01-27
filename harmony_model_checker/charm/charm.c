@@ -45,6 +45,7 @@
 #include "dot.h"
 // #include "iface/iface.h"
 #include "hashdict.h"
+#include "tpht.h"
 #include "dfa.h"
 #include "thread.h"
 #include "spawn.h"
@@ -152,7 +153,8 @@ struct worker {
     // Shard of the Kripke structure.  There is an array of shards.  Each shard
     // holds the states that hash onto the index into the array.
     struct shard {
-        struct dict *states;          // maps states to nodes
+        // struct dict *states;          // maps states to nodes
+        struct tpht *states;          // maps states to nodes
         bool needs_growth;            // hash table needs growing
         struct state_queue *peers;    // peers[nshards]
 
@@ -2695,9 +2697,12 @@ static void do_work2(struct worker *w){
             // See if this state has been computed before by looking up the node,
             // or allocate if not.
             bool new;
-            struct dict_assoc *hn = dict_find_new(shard->states, &w->allocator,
-//                         sc, size, sh->noutgoing * sizeof(struct edge), &new, sh->hash);
+//             struct dict_assoc *hn = dict_find_new(shard->states, &w->allocator,
+// //                         sc, size, sh->noutgoing * sizeof(struct edge), &new, sh->hash);
+//                         sc, size, sh->noutgoing * sizeof(struct edge), &new, meiyan3(sc));
+            struct tpht_assoc *hn = tpht_find_new(shard->states, &w->allocator,
                         sc, size, sh->noutgoing * sizeof(struct edge), &new, meiyan3(sc));
+                        
             struct node *next = (struct node *) &hn[1];
             struct edge *edge = &node_edges(sh->node)[sh->edge_index];
             edge->dst = next;
@@ -3170,7 +3175,8 @@ static void worker(void *arg){
         if (w->index == 2 % w->nworkers) {
             dict_grow_prepare(global.computations);
         }
-        w->shard.needs_growth = dict_overload(w->shard.states);
+        // w->shard.needs_growth = dict_overload(w->shard.states);
+        w->shard.needs_growth = tpht_overload(w->shard.states);
 
         // Start the final phase (and keep stats).
         // Here we're waiting for all workers to process the generated
@@ -3194,8 +3200,9 @@ static void worker(void *arg){
         // See if any of the peers' hash tables need growing.  If so, grow mine.
         for (unsigned int i = 0; i < w->nworkers; i++) {
             if (global.workers[i].shard.needs_growth) {
-                struct dict *dict = w->shard.states;
-                dict_resize(dict, dict->length * dict->growth_factor - 1);
+                // struct dict *dict = w->shard.states;
+                // dict_resize(dict, dict->length * dict->growth_factor - 1);
+                tpht_resize(w->shard.states, w->shard.states->length * w->shard.states->growth_factor - 1, &w->allocator, w->shard.states->align16);
                 break;
             }
         }
@@ -4607,7 +4614,8 @@ int exec_model_checker(int argc, char **argv){
         struct shard *shard = &w->shard;
         // shard->states = dict_new("shard states", sizeof(struct node), 0, 0, false, false);
         // shard->states = dict_new("shard states", sizeof(struct node), 8000000 / global.nworkers, 0, false, false);
-        shard->states = dict_new("shard states", sizeof(struct node), 1 << 16, 0, false, false);
+        // shard->states = dict_new("shard states", sizeof(struct node), 1 << 16, 0, false, false);
+        shard->states = tpht_new("shard states", sizeof(struct node), 1 << 5, 0, false, false);
         shard->states->autogrow = false;
         shard->peers = calloc(global.nworkers, sizeof(*shard->peers));
         for (unsigned int si2 = 0; si2 < global.nworkers; si2++) {
@@ -4731,7 +4739,8 @@ int exec_model_checker(int argc, char **argv){
     global.computations = dict_new("computations", sizeof(struct step_condition), 16 * 1024, global.nworkers, false, true);
 
     bool new;
-    struct dict_assoc *hn = dict_find_new(global.workers[0].shard.states, &workers[0].allocator, state, state_size(state), sizeof(struct edge), &new, meiyan2(state));
+    // struct dict_assoc *hn = dict_find_new(global.workers[0].shard.states, &workers[0].allocator, state, state_size(state), sizeof(struct edge), &new, meiyan2(state));
+    struct tpht_assoc *hn = tpht_find_new(global.workers[0].shard.states, &workers[0].allocator, state, state_size(state), sizeof(struct edge), &new, meiyan2(state));
     struct node *node = (struct node *) &hn[1];
     memset(node, 0, sizeof(*node));
     node->initial = true;
